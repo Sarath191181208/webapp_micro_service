@@ -1,8 +1,15 @@
+import requests
+
 from dataclasses import dataclass
-from flask import Flask, jsonify
+from flask import Flask, abort, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
+
+from sqlalchemy.exc import IntegrityError
+
+from producer import publish
+
 
 # import requests
 
@@ -35,23 +42,20 @@ def index():
     return jsonify(Product.query.all())
 
 
-# @app.route('/api/products/<int:id>/like', methods=['POST'])
-# def like(id):
-#     req = requests.get('http://docker.for.mac.localhost:8000/api/user')
-#     json = req.json()
-#
-#     try:
-#         productUser = ProductUser(user_id=json['id'], product_id=id)
-#         db.session.add(productUser)
-#         db.session.commit()
-#
-#         publish('product_liked', id)
-#     except:
-#         abort(400, 'You already liked this product')
-#
-#     return jsonify({
-#         'message': 'success'
-#     })
+@app.route("/api/products/<int:id>/like", methods=["POST"])
+def like(id: int):
+    req = requests.get("http://172.17.0.1:8000/api/user")
+    json = req.json()
+
+    try:
+        product_user = ProductUser(user_id=json["id"], product_id=id)
+        db.session.add(product_user)
+        db.session.commit()
+        publish("product_liked", id)
+    except IntegrityError:
+        abort(400, "You already liked this product")
+
+    return jsonify({"message": "success"})
 
 
 if __name__ == "__main__":
